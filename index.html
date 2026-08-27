@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>TireGuard — Electrostatic Wheel-Arch Trap for Tire Microplastics</title>
+<meta name="description" content="TireGuard captures tire-wear microplastics inside the wheel arch, before rain washes them into Southeast Asia's waterways. Interactive 3D breakdown of the device." />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="TireGuard — Electrostatic Wheel-Arch Trap" />
+<meta property="og:description" content="Bẫy vi nhựa lốp xe ngay trong hốc bánh, trước khi mưa cuốn xuống sông. Mô hình 3D tương tác theo thông số CAD." />
+<meta property="og:image" content="assets/og.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Be+Vietnam+Pro:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span>TireGuard</div>
+
+  <nav class="tabs" role="tablist" aria-label="Các phần nội dung">
+    <button class="tab" role="tab" data-panel="p3d"      aria-selected="true"  data-i18n="tab.model">Mô hình 3D</button>
+    <button class="tab" role="tab" data-panel="pvande"   aria-selected="false" data-i18n="tab.problem">Vấn đề</button>
+    <button class="tab" role="tab" data-panel="pthongso" aria-selected="false" data-i18n="tab.spec">Thông số</button>
+    <button class="tab" role="tab" data-panel="pnguyenly" aria-selected="false" data-i18n="tab.how">Nguyên lý</button>
+    <button class="tab" role="tab" data-panel="pcanhtranh" aria-selected="false" data-i18n="tab.compare">So sánh</button>
+    <button class="tab" role="tab" data-panel="pdoanhthu" aria-selected="false" data-i18n="tab.revenue">Doanh thu</button>
+    <button class="tab" role="tab" data-panel="plotrinh"  aria-selected="false" data-i18n="tab.roadmap">Lộ trình</button>
+    <button class="tab" role="tab" data-panel="pnguon"    aria-selected="false" data-i18n="tab.sources">Nguồn</button>
+  </nav>
+
+  <button class="lang" id="bLang" type="button" aria-label="Switch language">EN</button>
+</header>
+
+<main id="app">
+
+<!-- ==================== TAB 1 · MÔ HÌNH 3D ==================== -->
+<section class="panel stage active" id="p3d" role="tabpanel">
+  <canvas id="c" aria-label="Mô hình 3D thiết bị TireGuard"></canvas>
+  <div class="vignette"></div>
+
+  <div class="loading" id="loading">
+    <div class="lbar"><i id="lbar"></i></div>
+    <span data-i18n="loading">ĐANG DỰNG MÔ HÌNH 3D…</span>
+  </div>
+
+  <div class="stage-copy">
+    <div class="eyebrow" data-i18n="hero.eyebrow">Hốc bánh xe tĩnh điện · VF 8 · 245/45 R20</div>
+    <h1 data-i18n-html="hero.title">Bụi lốp bị bắt <em>trước khi</em> chạm mặt đường.</h1>
+    <p class="stage-sub" id="viewCaption" data-i18n="view.capOverview">Thiết bị chìm hẳn vào vòm hốc bánh sau, ôm góc văng ly tâm 30°–75°. Kéo để xoay, cuộn để phóng to.</p>
+  </div>
+
+  <div class="hud">
+    <h4 data-i18n="hud.title">Mô phỏng dòng hạt</h4>
+    <div class="gauge"><span id="eff">0</span><small>%</small></div>
+    <div class="gsub" data-i18n="hud.scope">hiệu suất trong cửa sổ 30°–75°</div>
+    <div class="bar"><i id="effbar"></i></div>
+    <div class="kv"><span data-i18n="hud.captured">Đã bẫy</span><b id="cap">0</b></div>
+    <div class="kv"><span data-i18n="hud.escaped">Lọt qua bẫy</span><b id="esc">0</b></div>
+    <div class="kv"><span data-i18n="hud.voltage">Điện áp</span><b id="volt">4,2 kV</b></div>
+    <div class="status" id="status" data-i18n="hud.on">ĐIỆN TRƯỜNG: BẬT</div>
+    <p class="disclaimer" data-i18n="hud.note">Mô phỏng minh họa nguyên lý. Không phải kết quả CFD.</p>
+  </div>
+
+  <div class="controls">
+    <div class="zoom-hint" id="zoomHint">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M14.8 14.8 L21 21"/><path d="M7.4 10 H12.6"/><path d="M10 7.4 V12.6"/></svg>
+      <span data-i18n="zoom.hint">Cuộn để phóng to — thiết bị sẽ tách ra từng lớp</span>
+    </div>
+    <div class="viewswitch" role="group" aria-label="Chế độ xem">
+      <button class="vbtn on" id="bOverview" type="button" data-i18n="view.overview">Tổng thể</button>
+      <button class="vbtn"    id="bExploded" type="button" data-i18n="view.exploded">Tách khối</button>
+    </div>
+    <div class="dock">
+      <button class="btn on" id="bField" type="button" data-i18n="dock.field">Điện trường</button>
+      <button class="btn warn" id="bFlood" type="button" data-i18n="dock.flood">Lội nước</button>
+      <button class="btn on" id="bLabels" type="button" data-i18n="dock.labels">Kích thước</button>
+      <button class="btn on" id="bSpin" type="button" data-i18n="dock.spin">Xoay tự động</button>
+      <button class="btn" id="bReset" type="button" data-i18n="dock.reset">Về góc gốc</button>
+    </div>
+  </div>
+
+  <div class="hs" id="hs0"><div class="pin"></div><div class="lab" data-i18n-html="hs.0">Vỏ ABS carbon · <u>dày 10 mm</u></div></div>
+  <div class="hs" id="hs1"><div class="pin"></div><div class="lab" data-i18n-html="hs.1">Lõi tổ ong · <u>15 mm · ô 3 mm</u></div></div>
+  <div class="hs" id="hs2"><div class="pin"></div><div class="lab" data-i18n-html="hs.2">Bản cực dẻo · <u>rộng 260 mm</u></div></div>
+  <div class="hs" id="hs3"><div class="pin"></div><div class="lab" data-i18n-html="hs.3">Máng hứng · <u>260×40×20 mm</u></div></div>
+  <div class="hs" id="hs4"><div class="pin"></div><div class="lab" data-i18n-html="hs.4">Khe hở phuộc · <u>50 mm</u></div></div>
+  <div class="hs" id="hs5"><div class="pin"></div><div class="lab" data-i18n-html="hs.5">Ô lục giác · <u>3 mm · vách 0,5 mm</u></div></div>
+  <div class="hs" id="hs6"><div class="pin"></div><div class="lab" data-i18n-html="hs.6">Điện cực hở · <u>8 mm · IP68</u></div></div>
+  <div class="hs" id="hs7"><div class="pin"></div><div class="lab" data-i18n-html="hs.7">Rãnh trượt Cartridge · <u>sâu 5 mm</u></div></div>
+
+</section>
+
+<!-- ==================== TAB 2 · VẤN ĐỀ ==================== -->
+<section class="panel doc" id="pvande" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s1.tag">01 — Vấn đề</div>
+    <h2 class="h2" data-i18n="s1.h">Xe điện bỏ được ống xả, nhưng không bỏ được lốp.</h2>
+    <p class="lede" data-i18n="s1.p1">Xe điện nặng hơn vì bộ pin, tăng tốc nhanh hơn, nên mài mòn lốp mạnh hơn. Phần phát thải này không đi qua ống xả nên không nằm trong bất kỳ phép đo khí thải nào — và cũng chưa có luật nào phạt nó. Ở Đông Nam Á, mỗi trận mưa lớn lại cuốn thẳng lượng bụi đó xuống hệ thống sông ngòi.</p>
+    <div class="stats">
+      <div class="stat"><b>3–8%</b><u>OECD, 2020</u><span data-i18n="s1.st0">Lượng hạt mịn không qua ống xả mà xe điện thải thêm so với xe xăng cùng cỡ, do trọng lượng pin.</span></div>
+      <div class="stat"><b>40%</b><u>ADB, 2025</u><span data-i18n="s1.st1">Tỷ lệ xe điện trong tổng doanh số ô tô tại Việt Nam — nhanh hơn tốc độ kiểm soát ô nhiễm lốp.</span></div>
+      <div class="stat"><b>6PPD-q</b><u>US EPA, 2025</u><span data-i18n="s1.st2">Sản phẩm của 6PPD khi gặp ozone. Bị mưa cuốn xuống nước và đủ độc để giết một số loài cá.</span></div>
+    </div>
+    <div class="rule"></div>
+    <p class="lede" data-i18n="s1.p2">Công nghệ bẫy hạt hiện có được thử nghiệm ở châu Âu và Mỹ, dạng treo ngoài sát mặt đường. Đem về đường ngập, ổ gà và vỉa hè cao của Việt Nam, thiết bị đó không sống nổi qua ngày đầu tiên. Khoảng trống không nằm ở vật lý — nó nằm ở hạ tầng.</p>
+  </div>
+</section>
+
+<!-- ==================== TAB 3 · THÔNG SỐ ==================== -->
+<section class="panel doc" id="pthongso" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s2.tag">02 — Thông số thiết kế</div>
+    <h2 class="h2" data-i18n="s2.h">Tham số hóa quanh lốp 245/45 R20 của VF 8.</h2>
+    <div class="scroller">
+    <table>
+      <thead><tr>
+        <th data-i18n="s2.th0">Thông số hình học</th>
+        <th data-i18n="s2.th1">Ký hiệu</th>
+        <th data-i18n="s2.th2">Giá trị</th>
+        <th data-i18n="s2.th3">Ràng buộc kỹ thuật</th>
+      </tr></thead>
+      <tbody>
+        <tr><td data-i18n="s2.r0">Bán kính ngoài lốp</td><td class="mono">R<sub>tire</sub></td><td class="n">365 mm</td><td><small data-i18n="s2.n0">Lốp tiêu chuẩn 245/45 R20.</small></td></tr>
+        <tr><td data-i18n="s2.r1">Bán kính vòm hốc bánh</td><td class="mono">R<sub>arch</sub></td><td class="n">415 mm</td><td><small data-i18n="s2.n1">Mặt cong trong của tấm chắn bùn.</small></td></tr>
+        <tr><td data-i18n="s2.r2">Khe hở hành trình phuộc</td><td class="mono">Gap<sub>clear</sub></td><td class="n">50 mm</td><td><small data-i18n="s2.n2">Sập ổ gà, nhún hết cỡ vẫn không cạ quẹt lốp.</small></td></tr>
+        <tr><td data-i18n="s2.r3">Góc ôm thu gom</td><td class="mono">θ</td><td class="n">30° – 75°</td><td><small data-i18n="s2.n3">Góc văng ly tâm tối ưu, chọn theo phân tích CFD.</small></td></tr>
+        <tr><td data-i18n="s2.r4">Chiều rộng bản cực</td><td class="mono">W<sub>active</sub></td><td class="n">260 mm</td><td><small data-i18n="s2.n4">Rộng hơn mặt lốp 15 mm để hứng bụi văng xiên.</small></td></tr>
+        <tr><td data-i18n="s2.r5">Bề dày tổng thể</td><td class="mono">T<sub>housing</sub></td><td class="n">30 mm</td><td><small data-i18n="s2.n5">Vỏ 10 mm + lõi tổ ong 15 mm + khe khí. Giữ nguyên Cd ≈ 0,20.</small></td></tr>
+        <tr><td data-i18n="s2.r6">Chiều dài cung vòm</td><td class="mono">L<sub>arc</sub></td><td class="n">≈ 325 mm</td><td><small data-i18n="s2.n6">Góc quét 45° ôm sát vách nhựa hốc bánh.</small></td></tr>
+        <tr><td data-i18n="s2.r7">Ô lục giác lõi tổ ong</td><td class="mono">d<sub>cell</sub></td><td class="n">3 mm</td><td><small data-i18n="s2.n7">Vách ngăn dày 0,5 mm, khí luồn qua không sinh lực cản.</small></td></tr>
+        <tr><td data-i18n="s2.r8">Dung tích Cartridge</td><td class="mono">V<sub>cart</sub></td><td class="n">200–300 cm³</td><td><small data-i18n="s2.n8">Đủ chứa bụi cho 10.000–15.000 km hành trình.</small></td></tr>
+        <tr><td data-i18n="s2.r9">Hộp cảm biến ngập</td><td class="mono">IP68</td><td class="n">50×30×15 mm</td><td><small data-i18n="s2.n9">Hai điện cực hở 8 mm, ngắt tĩnh điện &lt; 2 ms.</small></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB 4 · NGUYÊN LÝ ==================== -->
+<section class="panel doc" id="pnguyenly" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s3.tag">03 — Nguyên lý</div>
+    <h2 class="h2" data-i18n="s3.h">Ba chi tiết, không tiêu tốn pin xe.</h2>
+    <div class="cards">
+      <div class="card"><span class="num" data-i18n="s3.c0n">CHI TIẾT 01</span><h3 data-i18n="s3.c0t">Khung gá ôm hốc bánh</h3><p data-i18n="s3.c0d">Vỏ ABS gia cường sợi carbon, bán kính trong 415 mm, ngoài 445 mm, quét cung 45°. Hai rãnh trượt sâu 5 mm dọc mép trong làm đường ray định vị cho lõi lọc.</p></div>
+      <div class="card"><span class="num" data-i18n="s3.c1n">CHI TIẾT 02</span><h3 data-i18n="s3.c1t">Lõi bẫy tổ ong</h3><p data-i18n="s3.c1d">Dày 15 mm, lưới lục giác rỗng ô 3 mm, vách 0,5 mm. Khí luồn qua khe nên không sinh lực cản gió; hạt bụi bị lực Coulomb ghim vào vách. Lẫy bấm 20 mm cho phép rút thay trong 30 giây, không cần tháo lốp.</p></div>
+      <div class="card"><span class="num" data-i18n="s3.c2n">CHI TIẾT 03</span><h3 data-i18n="s3.c2t">Máng hứng &amp; mạch ngắt</h3><p data-i18n="s3.c2d">Máng 260×40×20 mm nằm ở điểm thấp nhất (30°), nơi bụi nặng rơi xuống. Hộp IP68 gá sát đáy với hai điện cực hở 8 mm: nước chạm tới là ngắt tĩnh điện dưới 2 ms.</p></div>
+    </div>
+
+    <div class="rule"></div>
+    <h3 class="h3" data-i18n="s3.flowh">Bốn nhịp vận hành</h3>
+    <ol class="flow">
+      <li><b data-i18n="ch.0.t">Phát sinh hạt</b><span data-i18n="ch.0.d">Ma sát lốp – mặt đường xé ra hạt TRWP mang sẵn điện tích ma sát, văng lên theo góc 30°–75°.</span></li>
+      <li><b data-i18n="ch.1.t">Giấu vào hốc bánh</b><span data-i18n="ch.1.d">Thiết bị nằm sâu trong vòm nhựa, không treo ngoài — sống được với ổ gà, đá văng và vỉa hè cao.</span></li>
+      <li><b data-i18n="ch.3.t">Bẫy tĩnh điện</b><span data-i18n="ch.3.d">Điện trường bẻ cong quỹ đạo parabol của hạt, lực Coulomb ghim hạt vào vách tổ ong.</span></li>
+      <li><b data-i18n="ch.4.t">An toàn ngập nước</b><span data-i18n="ch.4.d">Hai điện cực hở chạm nước → mạch IP68 ngắt tĩnh điện dưới 2 mili-giây.</span></li>
+      <li><b data-i18n="ch.5.t">Thay lõi, khép vòng</b><span data-i18n="ch.5.d">Rút Cartridge sau 10.000–15.000 km. Trả vỏ cũ được giảm 15% lõi mới; bụi bán lại cho nhà máy tái chế.</span></li>
+    </ol>
+
+    <div class="rule"></div>
+    <h3 class="h3" data-i18n="s3.eqh">Vì sao đặt ở 30°–75° chứ không treo ngoài</h3>
+    <p class="lede" data-i18n="s3.eqp">Hạt bụi rời gai lốp theo phương tiếp tuyến với vận tốc ban đầu v₍x0₎, rồi bay theo quỹ đạo parabol khi đi vào vùng điện trường đều. Đặt máng bẫy đúng dải góc này nghĩa là đón hạt ngay tại đoạn quỹ đạo bị bẻ cong mạnh nhất — và giấu toàn bộ hệ thống điện sâu trong vòm nhựa, tránh đá văng, ổ gà và nước ngập.</p>
+
+    <div class="eqs">
+      <div class="eq">
+        <div class="eqlab" data-i18n="s3.e0">Quỹ đạo hạt trong điện trường đều</div>
+        <div class="eqbody mono">y(x) = qE<sub>y</sub> · x² ⁄ (2 m<sub>p</sub> v<sub>x0</sub>²)</div>
+      </div>
+      <div class="eq">
+        <div class="eqlab" data-i18n="s3.e1">Phương trình chuyển động của hạt</div>
+        <div class="eqbody mono">m<sub>p</sub> d²r⁄dt² = F<sub>e</sub> + F<sub>g</sub> + F<sub>b</sub> + F<sub>d</sub></div>
+      </div>
+      <div class="eq">
+        <div class="eqlab" data-i18n="s3.e2">Định luật Gauss cho điện trường bẫy</div>
+        <div class="eqbody mono">∮<sub>∂Ω</sub> E · dS = Q<sub>enc</sub> ⁄ (ε₀ ε<sub>r</sub>)</div>
+      </div>
+      <div class="eq">
+        <div class="eqlab" data-i18n="s3.e3">Điều kiện giữ hạt khi xe sập ổ gà</div>
+        <div class="eqbody mono">qE ≥ m<sub>p</sub>(g + a<sub>vib</sub>) − F<sub>adh</sub></div>
+      </div>
+    </div>
+    <p class="note" data-i18n="s3.eqnote">F<sub>e</sub> = qE là lực Coulomb, F<sub>g</sub> + F<sub>b</sub> là trọng lực đã trừ lực đẩy Archimedes, F<sub>d</sub> là lực cản Stokes có hiệu chỉnh Cunningham cho hạt PM2.5. Mô phỏng trên trang này giải hệ đó ở dạng rút gọn, thời gian thực.</p>
+  </div>
+</section>
+
+<!-- ==================== TAB 5 · SO SÁNH ==================== -->
+<section class="panel doc" id="pcanhtranh" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s4.tag">04 — So sánh</div>
+    <h2 class="h2" data-i18n="s4.h">Ba hướng tiếp cận đã có, và chỗ trống còn lại.</h2>
+    <div class="scroller">
+    <table>
+      <thead><tr>
+        <th data-i18n="s4.th0">Hướng tiếp cận</th>
+        <th data-i18n="s4.th1">Đại diện</th>
+        <th data-i18n="s4.th2">Điểm mạnh</th>
+        <th data-i18n="s4.th3">Điểm yếu tại Đông Nam Á</th>
+      </tr></thead>
+      <tbody>
+        <tr><td data-i18n="s4.r0">Lốp ít mài mòn</td><td><small>Michelin, Continental, Bridgestone</small></td><td><small data-i18n="s4.s0">Giảm hạt ngay tại nguồn, không cần lắp thêm thiết bị.</small></td><td><small data-i18n="s4.w0">Phải đổi vật liệu và thiết kế cho từng dòng xe, mà ma sát vẫn là điều kiện bắt buộc để an toàn.</small></td></tr>
+        <tr><td data-i18n="s4.r1">Bẫy hạt gắn trên xe</td><td><small>The Tyre Collective</small></td><td><small data-i18n="s4.s1">Dùng luồng khí và điện trường bắt hạt ngay cạnh bánh xe.</small></td><td><small data-i18n="s4.w1">Thử nghiệm ở châu Âu và Mỹ; dạng treo ngoài sát mặt đường không sống được với ngập lụt và ổ gà.</small></td></tr>
+        <tr><td data-i18n="s4.r2">Thu gom sau khi hạt rơi</td><td><small data-i18n="s4.rep2">Xe quét đường, lưới lọc cống</small></td><td><small data-i18n="s4.s2">Gom được nhiều loại rác đường khác nhau.</small></td><td><small data-i18n="s4.w2">Chỉ hoạt động sau khi hạt đã chạm đường. Mưa lớn cuốn 6PPD xuống cống, sông, kênh trước khi kịp quét.</small></td></tr>
+        <tr class="hl"><td><b>TireGuard</b></td><td><small data-i18n="s4.rep3">Bẫy tĩnh điện trong hốc bánh</small></td><td><small data-i18n="s4.s3">Bắt hạt trước khi mưa cuốn đi, thiết bị được vòm nhựa che chắn hoàn toàn.</small></td><td><small data-i18n="s4.w3">Cần nguồn cao áp trên xe và mạng lưới gara để thay lõi định kỳ.</small></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB 6 · DOANH THU ==================== -->
+<section class="panel doc" id="pdoanhthu" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s5.tag">05 — Mô hình kinh doanh</div>
+    <h2 class="h2" data-i18n="s5.h">Ba lớp doanh thu khép kín một vòng vật chất.</h2>
+    <div class="cards">
+      <div class="card"><span class="num" data-i18n="s5.c0n">LỚP 01</span><h3 data-i18n="s5.c0t">Bán thiết bị</h3><p data-i18n="s5.c0d">Doanh thu từ bán và lắp đặt bộ tĩnh điện lên xe của hạm đội B2B. Giá giả định 200 USD/bộ.</p></div>
+      <div class="card"><span class="num" data-i18n="s5.c1n">LỚP 02</span><h3 data-i18n="s5.c1t">Dịch vụ &amp; vòng lặp 15%</h3><p data-i18n="s5.c1d">Bán lõi thay thế. Mỗi hộp trả về được giảm 15% cho lõi mới — cơ chế giữ tỷ lệ thu hồi cao và khóa chuỗi dịch vụ.</p></div>
+      <div class="card"><span class="num" data-i18n="s5.c2n">LỚP 03</span><h3 data-i18n="s5.c2t">Bán lại bụi lốp</h3><p data-i18n="s5.c2d">Bụi thu được chứa cao su, muội than, polymer tổng hợp — bán số lượng lớn cho nhà máy tái chế làm nhựa đường hoặc lốp mới.</p></div>
+    </div>
+    <div class="scroller">
+    <table>
+      <thead><tr>
+        <th data-i18n="s5.th0">Chỉ tiêu (USD)</th>
+        <th data-i18n="s5.th1">Năm 1 — Thí điểm</th>
+        <th data-i18n="s5.th2">Năm 2 — Mở rộng</th>
+        <th data-i18n="s5.th3">Năm 3 — Nhân rộng</th>
+      </tr></thead>
+      <tbody>
+        <tr><td data-i18n="s5.r0">Số xe lắp mới</td><td class="n">1.000</td><td class="n">4.000</td><td class="n">10.000</td></tr>
+        <tr><td data-i18n="s5.r1">Lớp 1 — Thiết bị</td><td class="n">200.000</td><td class="n">800.000</td><td class="n">2.000.000</td></tr>
+        <tr><td data-i18n="s5.r2">Lớp 2 — Dịch vụ</td><td class="n">50.000</td><td class="n">285.000</td><td class="n">925.000</td></tr>
+        <tr><td data-i18n="s5.r3">Lớp 3 — Bụi lốp</td><td class="n">0</td><td class="n">10.000</td><td class="n">50.000</td></tr>
+        <tr><td><b data-i18n="s5.r4">Tổng doanh thu</b></td><td class="n">250.000</td><td class="n">1.095.000</td><td class="n">2.975.000</td></tr>
+        <tr><td data-i18n="s5.r5">Giá vốn (55%)</td><td class="n">137.500</td><td class="n">602.250</td><td class="n">1.636.250</td></tr>
+        <tr><td data-i18n="s5.r6">Chi phí vận hành</td><td class="n">150.000</td><td class="n">250.000</td><td class="n">500.000</td></tr>
+        <tr><td><b data-i18n="s5.r7">Lợi nhuận ròng</b></td><td class="n">−37.500</td><td class="n">242.750</td><td class="n">838.750</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note" data-i18n="s5.note">Bảng số liệu mang tính giả định, dựng trên kịch bản hợp đồng hạm đội 1.000 xe năm đầu, giá thiết bị 200 USD và lõi 50 USD (còn 42,50 USD khi đổi trả). Chưa phải số liệu kiểm toán.</p>
+  </div>
+</section>
+
+<!-- ==================== TAB 7 · LỘ TRÌNH ==================== -->
+<section class="panel doc" id="plotrinh" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s6.tag">06 — Triển khai</div>
+    <h2 class="h2" data-i18n="s6.h">Từ bàn CAD đến hạm đội khu vực.</h2>
+    <div class="road">
+      <div class="leg"><b>01 · R&amp;D</b><p data-i18n="s6.l0">Tối ưu thiết bị để tích hợp chìm vào khung gầm thay vì treo ngoài, đạt kháng ngập và kháng va đập.</p></div>
+      <div class="leg"><b data-i18n="s6.l1n">02 · THỬ NGHIỆM</b><p data-i18n="s6.l1">Mô hình chi phí thấp với mô-tơ và mạch mini để tinh chỉnh hiệu suất hút tĩnh điện của bản cực.</p></div>
+      <div class="leg"><b data-i18n="s6.l2n">03 · ĐỐI TÁC B2B</b><p data-i18n="s6.l2">Bắt tay các hạm đội lớn; giao việc lắp đặt và thay lõi cho mạng lưới gara bảo dưỡng định kỳ.</p></div>
+      <div class="leg"><b>04 · KPI</b><p data-i18n="s6.l3">Đo khối lượng bụi thu được trên mỗi km và phần đóng góp vào chứng chỉ ESG của doanh nghiệp đối tác.</p></div>
+      <div class="leg"><b data-i18n="s6.l4n">05 · NHÂN RỘNG</b><p data-i18n="s6.l4">Chạy thực địa tại TP.HCM, Hà Nội, Đà Nẵng trước khi mở sang Indonesia, Philippines, Lào.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB 8 · NGUỒN ==================== -->
+<section class="panel doc" id="pnguon" role="tabpanel" hidden>
+  <div class="wrap">
+    <div class="tag" data-i18n="s7.tag">07 — Nguồn</div>
+    <h2 class="h2" data-i18n="s7.h">Số liệu trên trang này lấy từ đâu.</h2>
+    <ol class="src">
+      <li><b>OECD (2020)</b> — <span data-i18n="s7.0">Non-exhaust Particulate Emissions from Road Transport. Xe điện nặng hơn thải thêm 3–8% hạt mịn không qua ống xả.</span></li>
+      <li><b>ADB (2025)</b> — <span data-i18n="s7.1">Xe điện chiếm khoảng 40% doanh số ô tô tại Việt Nam, 20% Thái Lan, 15% Indonesia.</span></li>
+      <li><b>US EPA (2025)</b> — <span data-i18n="s7.2">6PPD phản ứng với ozone tạo 6PPD-quinone, bị mưa cuốn xuống nguồn nước và đủ độc để giết một số loài cá.</span></li>
+      <li><b>Emissions Analytics (UK)</b> — <span data-i18n="s7.3">Đo thực địa cho thấy hạt mịn từ lốp vượt xa lượng hạt còn lại từ ống xả của xe đời mới.</span></li>
+      <li><b>Imperial College London</b> — <span data-i18n="s7.4">Nhóm Transition to Zero Pollution cảnh báo xe điện nặng hơn và tăng tốc nhanh hơn sẽ làm trầm trọng thêm phát thải từ lốp.</span></li>
+      <li><b>University of Washington (2020)</b> — <span data-i18n="s7.5">Nghiên cứu bước ngoặt truy ra 6PPD-quinone là nguyên nhân gây chết hàng loạt cá hồi coho.</span></li>
+    </ol>
+    <div class="rule"></div>
+    <p class="note" data-i18n="foot.note">MÔ HÌNH DỰNG THEO THÔNG SỐ CAD · KHÔNG PHẢI BẢN VẼ CHẾ TẠO</p>
+  </div>
+</section>
+
+</main>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
