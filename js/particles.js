@@ -8,9 +8,16 @@ import { MM, R_TIRE, R_TRAP, W_ACT, W_TIRE, A0, A1, Q } from './config.js';
    mô hình và tốc độ khung hình. Đây là mô phỏng minh hoạ, không phải CFD.
    ========================================================================== */
 
-// Hằng số đã hiệu chuẩn bằng mô phỏng ngoại tuyến: hiệu suất hội tụ ổn định
-// ở 83% qua 120 giây chạy, nằm trong dải 80–85% mà tài liệu kỹ thuật nêu.
+// Hằng số đã hiệu chuẩn bằng mô phỏng ngoại tuyến (120 giây, 320–1.100 hạt):
+//   · chủ động (điện trường bật)  → hội tụ ≈ 69%, nằm trong dải mục tiêu 60–75%
+//     của pitch deck và khớp đường "TireGuard Active" ở 60–75 km/h (68–72%).
+//   · thụ động (ngập nước / tắt điện trường) → hội tụ ≈ 40%, khớp đường
+//     "Passive / Rain Mode" (38–42%).
+// Hình học cửa sổ 30°–75° quyết định phần lớn con số; xác suất bám dính dưới
+// đây mô tả việc hạt chạm vách tổ ong rồi nảy ra chứ không dính lại.
 const K_FIELD  = 20.0;   // gia tốc do lực Coulomb, chỉ tác dụng trong cửa sổ thu gom
+const P_STICK_ACTIVE  = 0.72;   // lực Coulomb ghim hạt vào vách
+const P_STICK_PASSIVE = 0.45;   // chỉ còn bẫy cơ học của lõi tổ ong
 const G_EFF    = 0.06;   // trọng lực hiệu dụng — nhỏ vì với hạt PM2.5/PM10 lực cản
                          // chi phối hoàn toàn, tốc độ rơi cuối chỉ vài mm/s
 const DRAG     = 0.12;   // hệ số cản Stokes tuyến tính hoá
@@ -23,7 +30,7 @@ const SPAWN_A0 = -1.40, SPAWN_A1 = 0.60;
 
 const CAP_COLOR  = [0.31, 0.89, 1.00];   // hạt đã bị bẫy
 const FREE_COLOR = [0.62, 0.66, 0.72];   // hạt đang bay
-const ESC_COLOR  = [1.00, 0.42, 0.37];   // hạt thoát khi mất điện trường
+const PASS_COLOR = [1.00, 0.70, 0.28];   // hạt bay khi chỉ còn bẫy cơ học thụ động
 
 export function createParticles(scene) {
   const N = Q.particles;
@@ -66,51 +73,69 @@ export function createParticles(scene) {
 
   function reset() { stats.captured = 0; stats.escaped = 0; }
 
-  function update(dt, live) {
-    const K = live ? K_FIELD : 0;
+  /**
+   * field: 0 → chỉ còn bẫy cơ học thụ động (ngập nước hoặc tắt điện trường),
+   *        1 → điện trường đủ áp; giữa hai mức là lúc khởi động mềm đang tăng áp.
+   */
+  function update(frameDt, field) {
+    const K = K_FIELD * field;
+    const pStick = P_STICK_PASSIVE + (P_STICK_ACTIVE - P_STICK_PASSIVE) * field;
+    // Bước tích phân cố định ≈ 1/60 s. Hiệu suất phụ thuộc bước thời gian (hạt
+    // nảy khỏi vách rồi chạm lại bao nhiêu lần), nên máy chỉ chạy 20 khung hình/s
+    // phải chia nhỏ bước thì mới ra cùng con số với máy chạy 60 khung hình/s.
+    const steps = Math.max(1, Math.round(frameDt * 60));
+    const dt = frameDt / steps;
     const damp = Math.pow(DRAG, dt);
 
     for (let i = 0; i < N; i++) {
       const p = P[i];
 
-      if (p.stuck) {
-        // hạt đã dính vào vách tổ ong, trôi chậm xuống máng hứng
-        const ang = Math.atan2(p.y, p.x) - dt * 0.10;
-        if (ang < A0 + 0.03) spawn(p);
-        else { p.x = Math.cos(ang) * R_TRAP; p.y = Math.sin(ang) * R_TRAP; }
-      } else {
-        p.t += dt;
-        const ang = Math.atan2(p.y, p.x);
-        const r = Math.hypot(p.x, p.y);
-        const inWindow = ang > A0 - 0.12 && ang < A1 + 0.12 && r > R_TIRE - 0.01;
+      for (let k = 0; k < steps; k++) {
+        if (p.stuck) {
+          // hạt đã dính vào vách tổ ong, trôi chậm xuống máng hứng
+          const ang = Math.atan2(p.y, p.x) - dt * 0.10;
+          if (ang < A0 + 0.03) spawn(p);
+          else { p.x = Math.cos(ang) * R_TRAP; p.y = Math.sin(ang) * R_TRAP; }
+        } else {
+          p.t += dt;
+          const ang = Math.atan2(p.y, p.x);
+          const r = Math.hypot(p.x, p.y);
+          const inWindow = ang > A0 - 0.12 && ang < A1 + 0.12 && r > R_TIRE - 0.01;
 
-        if (inWindow) {
-          p.entered = true;                   // đã lọt vào tầm với của thiết bị
-          if (K > 0) {                        // F_e = qE, hướng tâm ra ngoài
-            p.vx += Math.cos(ang) * K * dt;
-            p.vy += Math.sin(ang) * K * dt;
+          if (inWindow) {
+            p.entered = true;                   // đã lọt vào tầm với của thiết bị
+            if (K > 0) {                        // F_e = qE, hướng tâm ra ngoài
+              p.vx += Math.cos(ang) * K * dt;
+              p.vy += Math.sin(ang) * K * dt;
+            }
           }
-        }
-        p.vy -= 9.81 * G_EFF * dt;            // F_g + F_b
-        p.vx *= damp; p.vy *= damp; p.vz *= damp;   // F_d
-        p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+          p.vy -= 9.81 * G_EFF * dt;            // F_g + F_b
+          p.vx *= damp; p.vy *= damp; p.vz *= damp;   // F_d
+          p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
 
-        const r2 = Math.hypot(p.x, p.y);
-        const a2 = Math.atan2(p.y, p.x);
-        if (live && r2 > R_TRAP - 0.004 && a2 > A0 && a2 < A1 && Math.abs(p.z) < W_ACT / 2) {
-          p.stuck = true; stats.captured++;
-          p.x = Math.cos(a2) * R_TRAP;
-          p.y = Math.sin(a2) * R_TRAP;
-        } else if (r2 > 0.75 || p.y < -0.42 || p.t > LIFE_MAX) {
-          // chỉ tính là lọt lưới khi hạt đã thực sự đi vào cửa sổ thu gom.
-          // Hạt văng thẳng xuống mặt đường chưa từng nằm trong tầm thiết bị.
-          if (p.t > 0.25 && p.entered) stats.escaped++;
-          spawn(p);
+          const r2 = Math.hypot(p.x, p.y);
+          const a2 = Math.atan2(p.y, p.x);
+          const hit = r2 > R_TRAP - 0.004 && a2 > A0 && a2 < A1 && Math.abs(p.z) < W_ACT / 2;
+          if (hit && Math.random() < pStick) {
+            p.stuck = true; stats.captured++;
+            p.x = Math.cos(a2) * R_TRAP;
+            p.y = Math.sin(a2) * R_TRAP;
+          } else if (hit) {
+            // chạm vách nhưng không dính: nảy ngược ra, mất phần lớn động năng
+            p.vx *= -0.3; p.vy *= -0.3;
+            p.x = Math.cos(a2) * (R_TRAP - 0.006);
+            p.y = Math.sin(a2) * (R_TRAP - 0.006);
+          } else if (r2 > 0.75 || p.y < -0.42 || p.t > LIFE_MAX) {
+            // chỉ tính là lọt lưới khi hạt đã thực sự đi vào cửa sổ thu gom.
+            // Hạt văng thẳng xuống mặt đường chưa từng nằm trong tầm thiết bị.
+            if (p.t > 0.25 && p.entered) stats.escaped++;
+            spawn(p);
+          }
         }
       }
 
       pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
-      const c = p.stuck ? CAP_COLOR : (live ? FREE_COLOR : ESC_COLOR);
+      const c = p.stuck ? CAP_COLOR : (field > 0.5 ? FREE_COLOR : PASS_COLOR);
       col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
     }
 

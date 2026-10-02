@@ -13,6 +13,7 @@ import { floorFade } from './textures.js';
 import { createParticles, createBolts } from './particles.js';
 import { createStory } from './story.js';
 import { createUI, createTabs, createHotspots, createLoader } from './ui.js';
+import { initLang, setLang, getLang } from './i18n.js';
 
 const canvas = document.getElementById('c');
 
@@ -39,6 +40,8 @@ if (!hasWebGL()) {
   document.querySelector('.dock')?.remove();
   document.body.classList.add('no-gl');
   createTabs();                     // các tab nội dung vẫn phải dùng được
+  initLang();                       // createUI không chạy ở nhánh này nên tự bật ngôn ngữ
+  document.getElementById('bLang')?.addEventListener('click', () => setLang(getLang() === 'en' ? 'vi' : 'en'));
 } else {
   boot();
 }
@@ -228,6 +231,7 @@ async function boot() {
 
   const ui = createUI({
     onFieldToggle: () => particles.reset(),
+    onModeChange: () => particles.reset(),   // đo lại hiệu suất cho chế độ mới
     onReset: () => { user.az = 0; user.el = 0; user.distMul = 1; user.spin = 0; },
     onViewChange: (mode) => {
       story.setMode(mode);
@@ -256,6 +260,8 @@ async function boot() {
      ======================================================================== */
   const clock = new THREE.Clock();
   let exNow = 0, cutNow = 0, zoomNow = 0, boltTimer = 0, firstFrame = true;
+  let fieldLevel = 1, dryFor = 0;          // 0 = bẫy thụ động, 1 = đủ áp
+  const DRY_HOLD = 2.5, RAMP_TIME = 0.8;   // giây — xem pitch deck mục VI
   let visible = !document.hidden, onScreen = true;
   const offsets = [null, null, null, null, null];
 
@@ -348,14 +354,29 @@ async function boot() {
     water.position.y += Math.sin(time * 2.2) * 0.0004;
 
     const submerged = water.position.y > CUT_LEVEL;
-    const live = ui.state.field && !submerged;
 
-    if (!ui.state.field)      ui.setStatus('off');
-    else if (submerged)       ui.setStatus('cut');
-    else                      ui.setStatus('on');
+    /* Năm bước chống ngập theo pitch deck, chạy như một máy trạng thái:
+       1 phát hiện nước → 2 ngắt cao áp < 2 ms → 3 xả điện dư < 5 ms →
+       4 giữ chế độ bẫy thụ động → 5 ráo liên tục 2–3 s rồi khởi động mềm,
+       tăng áp tuyến tính trong 0,5–1 s. Trên trang dùng 2,5 s và 0,8 s. */
+    if (!ui.state.field) {
+      fieldLevel = 0; dryFor = 0; ui.setStatus('off');
+    } else if (submerged) {
+      fieldLevel = 0; dryFor = 0; ui.setStatus('cut');
+    } else if (fieldLevel < 1) {
+      dryFor += dt;
+      if (dryFor < DRY_HOLD) ui.setStatus('dry');
+      else {
+        fieldLevel = Math.min(1, fieldLevel + dt / RAMP_TIME);
+        ui.setStatus(fieldLevel < 1 ? 'ramp' : 'on');
+      }
+    } else {
+      ui.setStatus('on');
+    }
+    const live = fieldLevel > 0.5;
 
     // giữ dưới ngưỡng bloom, nếu để màu nguyên bản thì đèn báo nở thành đốm trắng
-    led.material.color.setHex(live ? 0x1d94ad : 0xa8443b);
+    led.material.color.setHex(fieldLevel >= 1 ? 0x1d94ad : fieldLevel > 0 ? 0xb07a2c : 0xa8443b);
 
     /* --- hồ quang --- */
     bolts.group.visible = live && exNow < 0.55;
@@ -363,8 +384,8 @@ async function boot() {
     if (bolts.group.visible && boltTimer > 0.055) { boltTimer = 0; bolts.refresh(); }
 
     /* --- hạt --- */
-    particles.update(dt, live);
-    ui.updateHUD(dt, particles.stats, live, time);
+    particles.update(dt, fieldLevel);
+    ui.updateHUD(dt, particles.stats, fieldLevel, time);
 
     /* --- nhãn kích thước --- */
     hotspots.update(camera, canvas, {

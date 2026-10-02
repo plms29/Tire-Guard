@@ -45,7 +45,7 @@ export function createTabs(onShow) {
   return { show };
 }
 
-export function createUI({ onFieldToggle, onReset, onViewChange }) {
+export function createUI({ onFieldToggle, onModeChange, onReset, onViewChange }) {
   const S = {
     field: true,
     flood: false,       // người dùng bật tay
@@ -54,17 +54,30 @@ export function createUI({ onFieldToggle, onReset, onViewChange }) {
   };
 
   const statusEl = $('status');
+  const modeEl = $('mode');
+  let measuring = 'active';
+  let warmup = 0;          // giây kể từ lần đo lại gần nhất
   let statusKey = 'hud.on';
 
   function paintStatus() {
     statusEl.innerHTML = t(statusKey);
-    statusEl.classList.toggle('cut', statusKey !== 'hud.on');
+    statusEl.classList.toggle('cut', statusKey === 'hud.cut' || statusKey === 'hud.off');
+    statusEl.classList.toggle('ramp', statusKey === 'hud.dry' || statusKey === 'hud.ramp');
+    if (modeEl) {
+      const passive = statusKey === 'hud.off' || statusKey === 'hud.cut';
+      modeEl.innerHTML = t(passive ? 'hud.modePassive' : statusKey === 'hud.on' ? 'hud.modeActive' : 'hud.modeRamp');
+    }
   }
 
-  /** kind: 'on' | 'off' | 'cut' */
+  /** kind: 'on' | 'off' | 'cut' | 'dry' | 'ramp' */
   function setStatus(kind) {
-    const key = kind === 'cut' ? 'hud.cut' : kind === 'off' ? 'hud.off' : 'hud.on';
+    const key = 'hud.' + kind;
     if (key === statusKey) return;
+    // số đếm chỉ có nghĩa trong một chế độ: đổi giữa chủ động và thụ động thì
+    // đo lại từ đầu, để đồng hồ hiện đúng hiệu suất của chế độ đang chạy
+    const passive = k => k === 'hud.off' || k === 'hud.cut';
+    const nextMode = passive(key) ? 'passive' : key === 'hud.on' ? 'active' : measuring;
+    if (nextMode !== measuring) { measuring = nextMode; warmup = 0; onModeChange && onModeChange(); }
     statusKey = key;
     paintStatus();
   }
@@ -79,10 +92,9 @@ export function createUI({ onFieldToggle, onReset, onViewChange }) {
     btn.setAttribute('aria-pressed', String(S[key]));
   }
 
-  bindToggle($('bField'), 'field', () => {
-    setStatus(S.field ? 'on' : 'off');
-    onFieldToggle && onFieldToggle();
-  });
+  // trạng thái thật do vòng lặp trong main.js quyết định (bật lại thì phải
+  // qua chờ ráo + khởi động mềm), ở đây chỉ cần đo lại từ đầu
+  bindToggle($('bField'), 'field', () => { warmup = 0; onFieldToggle && onFieldToggle(); });
   bindToggle($('bFlood'), 'flood');
   bindToggle($('bLabels'), 'labels');
   bindToggle($('bSpin'), 'spin');
@@ -113,11 +125,16 @@ export function createUI({ onFieldToggle, onReset, onViewChange }) {
   Object.entries(viewBtns).forEach(([k, b]) => b && b.addEventListener('click', () => setView(k)));
 
   /* ---------- HUD ---------- */
-  const effEl = $('eff'), barEl = $('effbar'), capEl = $('cap'), escEl = $('esc'), voltEl = $('volt');
+  const effEl = $('eff'), barEl = $('effbar'), capEl = $('cap'), escEl = $('esc'), voltEl = $('volt'), powEl = $('pow');
   let hudClock = 0;
 
-  function updateHUD(dt, stats, live, time) {
+  /** level: 0 = bẫy thụ động, 1 = điện trường đủ áp, giữa là đang khởi động mềm */
+  function updateHUD(dt, stats, level, time) {
     hudClock += dt;
+    const before = warmup;
+    warmup += dt;
+    // đếm lại một lần nữa khi dòng hạt của chế độ cũ đã bay hết (~2 s)
+    if (before <= 2 && warmup > 2) onModeChange && onModeChange();
     if (hudClock < 0.25) return;
     hudClock = 0;
 
@@ -125,14 +142,18 @@ export function createUI({ onFieldToggle, onReset, onViewChange }) {
     const total = stats.captured + stats.escaped;
     // chờ đủ mẫu rồi mới hiện, nếu không vài giây đầu con số còn đang hội tụ
     // và người xem đọc phải một tỷ lệ thấp không đại diện cho gì cả
-    const eff = total > 400 ? Math.round(stats.captured / total * 100) : 0;
-    effEl.textContent = eff;
+    // Ngay sau khi đổi chế độ, những hạt bay vào từ chế độ cũ vẫn đang thoát ra,
+    // nên đợi thêm vài giây cho dòng hạt ổn định rồi mới hiện con số.
+    const ready = total > 400 && warmup > 4;
+    const eff = ready ? Math.round(stats.captured / total * 100) : 0;
+    effEl.textContent = ready ? eff : '–';
     barEl.style.width = eff + '%';
     capEl.textContent = stats.captured.toLocaleString(locale);
     escEl.textContent = stats.escaped.toLocaleString(locale);
-    voltEl.textContent = live
-      ? (3.8 + Math.sin(time * 3) * 0.4).toFixed(1).replace('.', getLang() === 'en' ? '.' : ',') + ' kV'
-      : (getLang() === 'en' ? '0.0 kV' : '0,0 kV');
+    // 3–5 kV DC danh định, dao động nhẹ quanh 4 kV; < 3 W từ nguồn phụ 12 V
+    const num = v => v.toFixed(1).replace('.', getLang() === 'en' ? '.' : ',');
+    voltEl.textContent = num(level * (4.0 + Math.sin(time * 3) * 0.4)) + ' kV';
+    if (powEl) powEl.textContent = num(0.15 + level * (2.2 + Math.sin(time * 2.1) * 0.25)) + ' W';
   }
 
   /* ---------- ngôn ngữ ---------- */
