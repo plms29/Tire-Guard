@@ -18,7 +18,7 @@ thức `file://`, trang sẽ trắng.
 ## Cấu trúc
 
 ```
-index.html          một màn hình, 8 tab; song ngữ qua thuộc tính data-i18n
+index.html          một màn hình, 10 tab; song ngữ qua thuộc tính data-i18n
 css/site.css        toàn bộ giao diện
 js/config.js        thông số CAD, phân hạng máy mạnh yếu
 js/textures.js      vân bề mặt sinh bằng Canvas: sợi carbon, gai lốp, hông lốp,
@@ -27,6 +27,10 @@ js/device.js        dựng bánh xe, thân xe và 5 lớp thiết bị
 js/particles.js     mô phỏng dòng hạt và hồ quang điện
 js/story.js         hai chế độ xem và keyframe máy quay của mỗi chế độ
 js/ui.js            tab, nút chuyển chế độ, HUD, nhãn kích thước, màn hình chờ
+js/mockapi.js       API giả lập của TireGuard Cloud: 12 xe demo, trạm dịch vụ,
+                    bảng điểm ESG, số liệu theo quận — chạy trong trình duyệt
+js/portal.js        biểu đồ hiệu suất, máy tính chi phí, tab Hạm đội · API và
+                    Dữ liệu mở · ESG (chạy cả khi máy không có WebGL)
 js/i18n.js          bản tiếng Anh (bản tiếng Việt nằm trong HTML)
 js/main.js          ghép tất cả, ánh sáng, hậu kỳ, vòng lặp render
 vendor/             three.js r168 và các addon, đóng gói sẵn
@@ -49,7 +53,7 @@ Không truyền gì thì trang tự chọn theo cấu hình máy. Màn hình nh�
 
 Trang gói trong **đúng một màn hình, không cuộn dọc**. Nội dung chia theo tab
 trên thanh đầu trang: Mô hình 3D · Vấn đề · Thông số · Nguyên lý · So sánh ·
-Doanh thu · Lộ trình · Nguồn. Tab đang mở được nhớ lại ở lần vào sau.
+Doanh thu · Lộ trình · Hạm đội · API · Dữ liệu mở · ESG · Nguồn. Tab đang mở được nhớ lại ở lần vào sau.
 
 Trong tab **Mô hình 3D**:
 
@@ -62,6 +66,9 @@ Trong tab **Mô hình 3D**:
   điện cực hở 8 mm, rãnh trượt 5 mm) chỉ hiện khi vào thật sát.
 - **Kéo chuột** để xoay. Hàng nút dưới cùng bật/tắt điện trường, mô phỏng lội
   nước, ẩn hiện nhãn, dừng xoay tự động, và đưa máy quay về góc gốc.
+- **Lội nước** chạy đúng năm bước trong pitch deck: ngắt cao áp → bẫy thụ động
+  (hạt màu cam, đồng hồ về ≈ 40%) → rút nước thì chờ khô 2,5 s → khởi động mềm
+  tăng áp trong 0,8 s → về chủ động (≈ 69–72%).
 
 Khi chuyển sang tab khác, vòng lặp dựng hình tự dừng và chạy lại khi quay về —
 không đốt pin trong lúc người xem đang đọc bảng số.
@@ -69,9 +76,12 @@ không đốt pin trong lúc người xem đang đọc bảng số.
 ## Vài điều cần biết trước khi sửa
 
 **Con số hiệu suất là kết quả mô phỏng, không phải con số cứng.** Hằng số trong
-`js/particles.js` (`K_FIELD`, `G_EFF`, `DRAG`) đã được hiệu chuẩn để hiệu suất
-hội tụ ổn định ở khoảng 83% qua 120 giây chạy, khớp dải 80–85% mà tài liệu kỹ
-thuật nêu. Đổi bất kỳ hằng số nào thì phải chạy lại và kiểm tra con số trên HUD.
+`js/particles.js` (`K_FIELD`, `G_EFF`, `DRAG`, `P_STICK_ACTIVE`,
+`P_STICK_PASSIVE`) đã được hiệu chuẩn để hiệu suất hội tụ ở ≈ 69% khi chủ động
+và ≈ 40% khi thụ động (120 giây), khớp dải mục tiêu 60–75% của pitch deck và
+đường “Passive / Rain Mode” trong biểu đồ của nhóm. Vật lý chạy theo bước cố
+định 1/60 s nên máy 20 khung hình/s ra cùng con số với máy 60 khung hình/s.
+Đổi bất kỳ hằng số nào thì phải chạy lại và kiểm tra con số trên HUD.
 
 **Hiệu suất được tính trong cửa sổ thu gom.** Mẫu số chỉ đếm những hạt đã thực
 sự đi vào vùng 30°–75°. Hạt văng thẳng xuống mặt đường chưa từng nằm trong tầm
@@ -83,6 +93,14 @@ câu đó. Ban giám khảo kỹ thuật chắc chắn sẽ hỏi, và nói trư
 cộng về sự trung thực.
 
 **Bảng tài chính là giả định.** Ghi chú dưới bảng đã nêu. Giữ nguyên.
+
+**Tab Hạm đội · API là bản demo.** Toàn bộ dữ liệu sinh từ `js/mockapi.js`, mỗi
+phản hồi gắn `x-mock: true`, đầu tab có băng chữ DEMO. Khi có máy chủ thật, thay
+hàm `request()` bằng `fetch()` — đường dẫn và hình dạng JSON giữ nguyên.
+
+**Tab Dữ liệu mở · ESG mặc định để trống** theo ý nhóm: chỉ hiện khung, chờ số
+liệu thí điểm. Công tắc “Điền số liệu demo” hiện số mẫu có gắn nhãn DEMO DATA.
+Ô đối tác cũng để trống — điền tên khi đã có thỏa thuận.
 
 ## Đưa lên mạng
 
@@ -139,7 +157,9 @@ Kết quả nằm ở `models/tireguard.glb`, tên object đặt sẵn là `shel
 - [ ] Ngắt mạng, tải lại trang — mô hình vẫn hiện
 - [ ] Mở trên iPhone Safari và Android Chrome
 - [ ] Bấm nút EN/VI, không sót chuỗi nào
-- [ ] Bấm qua cả 8 tab, không tab nào trống
+- [ ] Bấm qua cả 10 tab, không tab nào trống
+- [ ] Bấm “Lội nước”: thấy ngắt → thụ động ≈ 40% → khởi động mềm → ≈ 70%
+- [ ] Tab Hạm đội: mở một xe, “tìm trạm gần nhất”, gửi yêu cầu, ra phiếu SR-…
 - [ ] Chuyển Tổng thể ↔ Tách khối mượt ở cả hai chiều
 - [ ] Cuộn chuột trên mô hình, nhãn chi tiết hiện ra theo hai tầng
 - [ ] Link mở được ở chế độ ẩn danh bằng mạng 4G
